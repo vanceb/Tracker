@@ -27,5 +27,8 @@
 *.out
 *.app
 
+# OS X
+.DS_Store
+
 # Project specific
 private.h
