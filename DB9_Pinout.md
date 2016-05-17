@@ -1,6 +1,6 @@
 # DB9 Pinout for Tracker
 
-## Pinout view from rear of DB9 Socket
+## Pinout view from rear of DB9 Socket (Solder side)
 
      -----------
     \ 1 2 3 4 5 /
