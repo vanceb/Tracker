@@ -5,4 +5,5 @@
   (lib (name Signal_Relay)(type KiCad)(uri "$(KIPRJMOD)/lib/Signal_Relay.pretty")(options "")(descr ""))
   (lib (name SOT666)(type KiCad)(uri "$(KIPRJMOD)/lib/SOT666.pretty")(options "")(descr ""))
   (lib (name ArduinoShieldShort)(type KiCad)(uri "$(KIPRJMOD)/lib/ArduinoShieldShort.pretty")(options "")(descr ""))
+  (lib (name SMD_LED)(type KiCad)(uri "$(KIPRJMOD)/lib/SMD_LED.pretty")(options "")(descr ""))
 )

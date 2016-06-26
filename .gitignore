@@ -32,3 +32,5 @@
 
 # Project specific
 private.h
+*.crt
+*.key

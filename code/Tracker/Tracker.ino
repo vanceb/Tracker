@@ -12,17 +12,24 @@
 
 #define GPS_POWERUP_DELAY 30000  // Allow time for the GPS to get a fix
 
+#define SMS_RETRIES 3 // The number of time we attempt to send SMS before fail
+
 // Global variables
 LSMSClass sms;
 gpsSentenceInfoStruct gps_info;
 // Buffer for SMS messages
-char buffSMS[140];
+char buffSMSTx[141];
+char buffSMSRx[141];
+// Buffer to hold incoming SMS from number
+#define MAX_SMS_NUMBER 30
+char buffSMSFrom[MAX_SMS_NUMBER];
 //Buffer for GPRS messages
 char buffGPRS[256];
 // Buffer for Power SMS
 char powerSMS[140];
 // Buffer for Power GPRS
 char powerGPRS[256];
+char* buff;
 
 bool power_down_gps = true;
 int battery_level = 0;
@@ -37,33 +44,97 @@ void log(const char * msg) {
 
 
 // Easy sending of SMS
-int send_SMS(const char* to, const char * msg) {
+int send_SMS(const char* to, const char * msg, uint8_t retry_count) {
     log("Beginning to send SMS");
-    // Initiate SMS
-    while(!sms.ready()){
-        log("Waiting for SMS to be ready");
+    bool success = false;
+    int attempts = 0;
+    while (!success && attempts < retry_count) {
+        // Initiate SMS
+        while(!sms.ready()){
+            log("Waiting for SMS to be ready");
+            delay(10);
+        }
+        log("SMS Ready");
+        // Start the SMS using the number to send to
+        if (sms.beginSMS(to)) {
+            log("Started SMS to:");
+            log(to);
+        } else {
+            log("Start SMS Failed");
+        }
+        // Add the message body
+        sms.print(msg);
+        // Complete and send SMS
+        if (sms.endSMS()) {
+            log("SMS Sent");
+            success = true;
+        } else {
+            log("SMS Send Failed");
+            attempt++;
+        }
     }
-    log("SMS Ready");
-    // Start the SMS using the number to send to
-    if (sms.beginSMS(to)) {
-        log("Started SMS to:");
-        log(to);
-    } else {
-        log("Start SMS Failed");
-    }
-
-    // Add the message body
-    sms.print(msg);
-
-    // Complete and send SMS
-    if (sms.endSMS()) {
-        log("SMS Sent");
+    if(success) {
         return 0;
     } else {
-        log("SMS Send Failed");
-        return -1;
+        return -1
     }
 }
+
+
+// Receive SMS
+bool check_SMS() {
+    log("Checking for unread SMS");
+    while(!sms.ready()){
+        log("Waiting for SMS to be ready");
+        delay(10);
+    }
+    log("SMS Ready");
+    if(sms.available()) {
+        log("We have a message!");
+        // Get the number which sent the SMS message
+        int i = sms.remoteNumber(buffSMSFrom, MAX_SMS_NUMBER);
+        switch(i) {
+            case 0:
+                log("No new SMS - or no number?");
+                // Clear out the number to make sure it doesn't retain last
+                buffSMSFrom[0] = '\0';
+                break;
+            case MAX_SMS_NUMBER:
+                log("From Number too long!");
+                // Clear out the number to make sure it doesn't retain last
+                buffSMSFrom[0] = '\0';
+                break;
+            default:
+                log(buffSMSFrom);
+                if(!strcmp(buffSMSFrom, NOTIFY_NUMBER)) {
+                    log("Message from authorised number!");
+                } else {
+                    log("Message from unknown number");
+                }
+        }
+
+        // Get the contents of the message into the buffer
+        while(i < 140 && sms.peek() != -1) {
+            buffSMS[i] = sms.read();
+            i++;
+        }
+        //buffSMS[i] = '\0';
+        log(buffSMS);
+        // Delete the message
+        sms.flush();
+        return true;
+    } else {
+        log("No new messages");
+        return false;
+    }
+}
+
+// Process SMS for actions
+void process_SMS() {
+    log("Processing SMS Message");
+    log(buffSMS);
+}
+
 
 // Easy sending of GPRS data
 int send_GPRS() {
@@ -248,12 +319,15 @@ void setup () {
     delay(1000);
     update_location();
     check_power();
-    send_SMS(NOTIFY_NUMBER, buffSMS);
+    send_SMS(NOTIFY_NUMBER, buffSMS, SMS_RETRIES);
 
 }
 
 void loop () {
-    delay(60000);
-    update_location();
-    check_power();
+    if (check_SMS()) {
+        process_SMS();
+    }
+    delay(1000);
+    //update_location();
+    //check_power();
 }
